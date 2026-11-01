@@ -1,19 +1,19 @@
--- Roblox Studio setup installer. Run ONCE in the Command Bar in EDIT mode, not Play.
--- Downloads ONLY source files from this project's public GitHub branch.
+-- Mutation Lab V0.2 installer. Paste into the Command Bar in EDIT mode, not Play.
+-- Downloads ONLY source files from this project's public GitHub commit.
 -- Make a backup before running in an existing place: it overwrites matching script names.
 local RunService = game:GetService("RunService")
 assert(RunService:IsStudio() and not RunService:IsRunning(),
     "Open a Baseplate in Roblox Studio and STOP Play before installing")
 
 local HttpService = game:GetService("HttpService")
-local base = "https://raw.githubusercontent.com/kwiqueh/roblox/fix/breeding-mvp-catalog-and-studio-assets/"
+local base = "https://raw.githubusercontent.com/kwiqueh/roblox/73729d1375b0bcf5b3cf64254c3e3605e37b8705/"
 local files = {
     {"ReplicatedStorage/Shared/PartCatalog.lua", "ReplicatedStorage", {"Shared"}, "PartCatalog", "ModuleScript"},
     {"ServerScriptService/Services/BreedingService.lua", "ServerScriptService", {"Services"}, "BreedingService", "ModuleScript"},
     {"ServerScriptService/Services/CreatureAssembler.lua", "ServerScriptService", {"Services"}, "CreatureAssembler", "ModuleScript"},
     {"ServerScriptService/Services/BreedingServerManager.lua", "ServerScriptService", {"Services"}, "BreedingServerManager", "ModuleScript"},
     {"ServerScriptService/ServerBootstrap.server.lua", "ServerScriptService", {}, "ServerBootstrap", "Script"},
-    {"examples/BreedClient.client.lua", "StarterPlayer", {"StarterPlayerScripts"}, "BreedClient", "LocalScript"},
+    {"StarterPlayer/StarterPlayerScripts/CreatureLabUI.client.lua", "StarterPlayer", {"StarterPlayerScripts"}, "CreatureLabUI", "LocalScript"},
 }
 local oldHttpEnabled = HttpService.HttpEnabled
 HttpService.HttpEnabled = true
@@ -36,6 +36,7 @@ local function getFolder(parent, name)
         child.Name = name
         child.Parent = parent
     end
+    assert(child:IsA("Folder"), name .. " must be a Folder")
     return child
 end
 for i, spec in ipairs(files) do
@@ -47,14 +48,24 @@ for i, spec in ipairs(files) do
             parent = getFolder(parent, folderName)
         end
     end
-    local existing = parent:FindFirstChild(spec[4])
-    assert(not existing or existing.ClassName == spec[5],
-        "Existing instance has wrong type: " .. spec[4])
+    local existing = nil
+    for _, child in ipairs(parent:GetChildren()) do
+        if child.Name == spec[4] then
+            assert(child.ClassName == spec[5], "Existing instance has wrong type: " .. spec[4])
+            if existing then child:Destroy() else existing = child end
+        end
+    end
     local scriptObject = existing or Instance.new(spec[5])
     scriptObject.Name = spec[4]
     -- Script.Source can be set from Studio's Command Bar, not from game scripts.
     scriptObject.Source = sources[i]
     scriptObject.Parent = parent
+end
+
+-- The V0.1 example breeds on join. Disable every exact-name copy.
+local starterScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
+for _, child in ipairs(starterScripts:GetChildren()) do
+    if child.Name == "BreedClient" and child:IsA("LocalScript") then child.Enabled = false end
 end
 
 local storage = game:GetService("ServerStorage")
@@ -101,5 +112,5 @@ for slot, ids in pairs(slots) do
         end
     end
 end
-print("MUTATION LAB INSTALLED: 6 scripts, " .. generated .. " new test body parts.")
-print("Now press Play. The two starters should spawn, followed by a third creature.")
+print("MUTATION LAB V0.2 INSTALLED: 6 scripts, " .. generated .. " new test body parts; BreedClient disabled.")
+print("Save your place, then press Play. Two starters appear; use BREED to create another.")
