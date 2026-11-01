@@ -1,19 +1,23 @@
-# roblox
+# Roblox creature breeding MVP
 
-# Creature breeding backend
+This repository includes the **PartCatalog**, **BreedingService**, **CreatureAssembler**, and **BreedingServerManager**. Inventories are SESSION-ONLY (no DataStore yet).
 
-This is a session-only implementation: collections are lost when the player leaves or the server stops. It does not add a DataStore.
+## Quick setup in Roblox Studio
 
-## Studio setup and required dependencies
+1. Create **ReplicatedStorage > Shared** and insert `ReplicatedStorage/Shared/PartCatalog.lua` as a ModuleScript named `PartCatalog`.
+2. Create **ServerScriptService > Services** and insert the three ModuleScripts from `ServerScriptService/Services`, preserving their exact names.
+3. Insert `ServerScriptService/ServerBootstrap.server.lua` into **ServerScriptService** as a normal Script.
+4. Open **View > Command Bar**, paste and run `examples/GeneratePlaceholderAssets.commandbar.lua` **while not playing**. It creates all 15 catalog assets in `ServerStorage.PartAssets`. These are temporary cubes, not final art.
+5. Insert `examples/BreedClient.client.lua` as a LocalScript in **StarterPlayer > StarterPlayerScripts**.
+6. Press **Play**. In Studio without a production Laboratories folder, demo plots are generated. Two starter creatures appear and the sample client requests a third. Inspect **Output** for errors.
 
-1. Place `CreatureAssembler.lua` and `BreedingServerManager.lua` as ModuleScripts in `ServerScriptService.Services`; place `ServerBootstrap.server.lua` as a Script in `ServerScriptService`.
-2. Provide `ReplicatedStorage.Shared.PartCatalog` with `Parts[id].Slot` equal to `"Head"`, `"Body"`, or `"Limbs"`. **This schema is an explicit integration assumption**: the repository contained no catalog, so the actual entry field cannot be verified. Adapt the two catalog lookups if the real catalog differs.
-3. Provide `ServerScriptService.Services.BreedingService` exposing `Breed(parentA, parentB)` returning a new serializable Creature with a globally unique server-generated ID, integer Unix timestamp, the selected parent IDs in order, and catalog-valid genes. Its inheritance and mutation probabilities must implement the specified genetics. This repository contains no genetics engine, so its behavior cannot be verified here.
-4. Create `ServerStorage.PartAssets` with `Head`, `Body`, and `Limbs` folders. Each gene ID must name a Model in its matching folder. Every Model must have a `Root` BasePart set as PrimaryPart. Body Root needs `HeadSocket` and `LimbsSocket` Attachments; the other Roots need `RootMount`. All attachments describe both position and orientation. Source assets must be archivable and contain no joints, constraints, scripts, or Humanoids; geometry is welded to the body root during assembly. Supply all catalog assets, including the starter genes `H_TOAST`, `H_CONE`, `B_DONUT`, `B_BRICK`, and `L_ODD_SOCKS`.
-5. For production, create `Workspace.Laboratories` as a Folder with a Model per plot, `OwnerUserId` numeric attribute, and `SpawnPoints` containing anchored BaseParts `Spawn1` through `Spawn6`. When the folder is absent, a demo plot is created only in Studio; disable it with `ENABLE_DEMO`. `ActiveCreatures` and both RemoteFunctions under `ReplicatedStorage.Remotes` are created as needed. Existing instances with wrong classes are rejected.
-6. Start a Studio local server with at least two players (Test > Server & Clients). Use `examples/BreedClient.client.lua` as an example LocalScript; wait until initialization finishes before calling it. The two starters commit together at inventory version 1. Slot dictionary keys in the remote state are strings `"1"` through `"6"`, to support sparse serializable dictionaries.
+**Schema:** catalog entries use lowercase `slot`, `tier` and `weight`. Both runtime modules use `entry.slot`.
 
-The manager's server-only `RespawnCreature(player, id)` can restore a missing decorative model without altering inventory. `Stop()` removes its session state, models and demo plots. The system does not persist data. The genetics engine is trusted server code and must not mutate inputs; defensive copies are passed to it.
+All placeholder models have a `Root` BasePart set as `PrimaryPart`. The Body Root has `HeadSocket` and `LimbsSocket`; Head/Limbs Roots have `RootMount`. No preexisting constraints, joints, scripts or Humanoids are included.
+
+**Not verified in Roblox Studio:** runtime behavior, strict diagnostics, and multiplayer acceptance tests still need execution in Studio. The files have been reviewed for schema consistency; this is not a claim of a successful Studio run.
+
+## Detailed setup and test checklist
 
 ## Acceptance checklist
 
