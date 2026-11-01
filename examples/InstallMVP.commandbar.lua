@@ -1,4 +1,4 @@
--- Mutation Lab V0.2 installer. Paste into the Command Bar in EDIT mode, not Play.
+-- Mutation Lab V0.3 installer. Paste into the Command Bar in EDIT mode, not Play.
 -- Downloads ONLY source files from this project's public GitHub commit.
 -- Make a backup before running in an existing place: it overwrites matching script names.
 local RunService = game:GetService("RunService")
@@ -6,8 +6,9 @@ assert(RunService:IsStudio() and not RunService:IsRunning(),
     "Open a Baseplate in Roblox Studio and STOP Play before installing")
 
 local HttpService = game:GetService("HttpService")
-local base = "https://raw.githubusercontent.com/kwiqueh/roblox/98f5179e0c2771ce5dbe7a10f7825d1f08c28036/"
+local base = "https://raw.githubusercontent.com/kwiqueh/roblox/fd82d55b9877f82d2612ba2f8ee4bc36e008cf67/"
 local files = {
+    {"ServerStorage/AssetGeneration/CreatureAssetFactory.lua", "ServerStorage", {"AssetGeneration"}, "CreatureAssetFactory", "ModuleScript"},
     {"ReplicatedStorage/Shared/PartCatalog.lua", "ReplicatedStorage", {"Shared"}, "PartCatalog", "ModuleScript"},
     {"ServerScriptService/Services/BreedingService.lua", "ServerScriptService", {"Services"}, "BreedingService", "ModuleScript"},
     {"ServerScriptService/Services/CreatureAssembler.lua", "ServerScriptService", {"Services"}, "CreatureAssembler", "ModuleScript"},
@@ -39,6 +40,7 @@ local function getFolder(parent, name)
     assert(child:IsA("Folder"), name .. " must be a Folder")
     return child
 end
+local factoryModule = nil
 for i, spec in ipairs(files) do
     local parent = game:GetService(spec[2])
     for _, folderName in ipairs(spec[3]) do
@@ -60,6 +62,7 @@ for i, spec in ipairs(files) do
     -- Script.Source can be set from Studio's Command Bar, not from game scripts.
     scriptObject.Source = sources[i]
     scriptObject.Parent = parent
+    if spec[4] == "CreatureAssetFactory" then factoryModule = scriptObject end
 end
 
 -- The V0.1 example breeds on join. Disable every exact-name copy.
@@ -68,49 +71,19 @@ for _, child in ipairs(starterScripts:GetChildren()) do
     if child.Name == "BreedClient" and child:IsA("LocalScript") then child.Enabled = false end
 end
 
-local storage = game:GetService("ServerStorage")
-local assets = getFolder(storage, "PartAssets")
-assert(assets:IsA("Folder"), "PartAssets must be a Folder")
-local slots = {
-    Head = {"H_TOAST", "H_CONE", "H_AQUARIUM", "H_SCREAM", "H_ERROR"},
-    Body = {"B_DONUT", "B_BRICK", "B_FRIDGE", "B_GYM", "B_VOID"},
-    Limbs = {"L_ODD_SOCKS", "L_CHAIR_WHEELS", "L_SPAGHETTI", "L_ROCKET", "L_INVERT"},
-}
-local generated = 0
-for slot, ids in pairs(slots) do
-    local folder = getFolder(assets, slot)
-    assert(folder:IsA("Folder"), slot .. " must be a Folder")
-    for _, id in ipairs(ids) do
-        if not folder:FindFirstChild(id) then
-            local model = Instance.new("Model")
-            model.Name = id
-            local root = Instance.new("Part")
-            root.Name = "Root"
-            root.Size = if slot == "Body" then Vector3.new(2, 2, 2)
-                else Vector3.new(1.5, 1, 1.5)
-            root.CanCollide = false
-            root.Anchored = false
-            root.Color = if slot == "Head" then Color3.fromRGB(255, 195, 75)
-                elseif slot == "Body" then Color3.fromRGB(110, 190, 255)
-                else Color3.fromRGB(180, 255, 140)
-            root.Parent = model
-            model.PrimaryPart = root
-            local function attach(name, offset)
-                local a = Instance.new("Attachment")
-                a.Name, a.Position, a.Parent = name, offset, root
-            end
-            if slot == "Body" then
-                attach("HeadSocket", Vector3.new(0, 1, 0))
-                attach("LimbsSocket", Vector3.new(0, -1, 0))
-            elseif slot == "Head" then
-                attach("RootMount", Vector3.new(0, -0.5, 0))
-            else
-                attach("RootMount", Vector3.new(0, 0.5, 0))
-            end
-            model.Parent = folder
-            generated += 1
-        end
-    end
-end
-print("MUTATION LAB V0.2 INSTALLED: 6 scripts, " .. generated .. " new test body parts; BreedClient disabled.")
-print("Save your place, then press Play. Two starters appear; use BREED to create another.")
+-- A fresh ModuleScript instance avoids Roblox's require cache on repeat installs.
+assert(factoryModule and factoryModule:IsA("ModuleScript"), "CreatureAssetFactory not installed")
+local temporary = factoryModule:Clone()
+temporary.Name = "__MutationLabInstall_" .. HttpService:GenerateGUID(false)
+temporary.Parent = factoryModule.Parent
+local generated, result = pcall(function()
+    local factory = require(temporary)
+    return factory.Generate()
+end)
+temporary:Destroy()
+assert(generated, "Asset generation failed: " .. tostring(result))
+print(string.format("MUTATION LAB V0.3: %d created, %d upgraded, %d current, %d custom/duplicate assets preserved, %d failed.",
+    result.created, result.upgraded, result.unchanged, result.preserved, result.failed))
+assert(result.failed == 0, "Some assets failed to generate; see Output for details")
+print("MUTATION LAB V0.3 INSTALLED: 7 scripts; old BreedClient disabled. Save the place, then press Play.")
+if result.preserved > 0 then warn("Some unrecognized or duplicate assets were preserved; see Output and inspect them before testing.") end
