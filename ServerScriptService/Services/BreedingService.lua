@@ -55,7 +55,7 @@ end
 
 function BreedingService.Breed(a: Creature, b: Creature): Creature
     local genes: GeneData = {Head = "", Body = "", Limbs = ""}
-    for _, slot: Slot in {"Head", "Body", "Limbs"} do
+    for _, slot in Catalog.Slots do
         local roll = rng:NextInteger(1, 100)
         if roll <= 45 then
             genes[slot] = inherit(a.genes[slot], slot)
