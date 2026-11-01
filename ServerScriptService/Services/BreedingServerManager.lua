@@ -9,6 +9,8 @@ local Catalog = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("P
 type Creature = Assembler.Creature
 type GeneData = Assembler.GeneData
 export type BreedRequest = { parentAId: string, parentBId: string, expectedInventoryVersion: number? }
+export type DiscardRequest = {creatureId: string, expectedInventoryVersion: number?}
+export type DiscardResult = {success: boolean, code: string, message: string, inventoryVersion: number}
 export type BreedResult = {success: boolean, code: string, message: string, creature: Creature?, slotIndex: number?, inventoryVersion: number}
 export type CreatureStateResult = {success: boolean, code: string, message: string, creatures: {Creature}, occupiedSlots: {[string]: string}, inventoryVersion: number, maxSlots: number}
 type State = {creaturesById: {[string]: Creature}, creatureOrder: {string}, modelsById: {[string]: Model}, occupiedSlots: {[number]: string}, inventoryVersion: number, isBreeding: boolean, lastSuccessfulBreedTime: number, laboratory: Model?, isReady: boolean, demo: boolean, folder: Folder?, active: boolean}
@@ -22,6 +24,7 @@ local started = false
 local generation = 0
 local breedRemote: RemoteFunction? = nil
 local stateRemote: RemoteFunction? = nil
+local discardRemote: RemoteFunction? = nil
 local manager = {}
 
 local function folder(parent: Instance, name: string): Folder
@@ -202,6 +205,46 @@ local function breed(player: Player, request: unknown): BreedResult
  state.isBreeding = false
  return outcome or result(state, "INTERNAL_ERROR", "Breeding failed")
 end
+local function discard(player: Player, request: unknown): DiscardResult
+ local state = states[player]
+ local function response(success: boolean, code: string, message: string): DiscardResult
+  return {success = success, code = code, message = message, inventoryVersion = if state then state.inventoryVersion else 0}
+ end
+ if not state or not state.active or not state.isReady or player.Parent ~= Players then return response(false, "NOT_READY", "Collection is not ready") end
+ if state.isBreeding then return response(false, "BUSY", "Another request is in progress") end
+ if type(request) ~= "table" then return response(false, "INVALID_REQUEST", "Invalid request") end
+ local data = request :: {[string]: unknown}
+ for key in data do
+  if key ~= "creatureId" and key ~= "expectedInventoryVersion" then return response(false, "INVALID_REQUEST", "Invalid request") end
+ end
+ local id, expected = data.creatureId, data.expectedInventoryVersion
+ if type(id) ~= "string" or #id == 0 or #id > 128 then return response(false, "INVALID_REQUEST", "Invalid creature identifier") end
+ if expected ~= nil and (type(expected) ~= "number" or expected ~= expected or expected < 0 or expected == math.huge or expected % 1 ~= 0) then return response(false, "INVALID_REQUEST", "Invalid inventory version") end
+ if expected ~= nil and expected ~= state.inventoryVersion then return response(false, "STALE_STATE", "Collection has changed") end
+ if not state.creaturesById[id] then return response(false, "PARENT_NOT_FOUND", "Creature not found in your collection") end
+ if #state.creatureOrder <= 2 then return response(false, "MINIMUM_CREATURES", "Keep at least two creatures for breeding") end
+ local slot: number? = nil
+ for index, occupied in state.occupiedSlots do if occupied == id then slot = index; break end end
+ local orderIndex = table.find(state.creatureOrder, id)
+ if not slot or not orderIndex then
+  warn("Inconsistent creature inventory for " .. player.UserId)
+  return response(false, "INTERNAL_ERROR", "Could not discard creature")
+ end
+ -- The commit does not yield, and uses the same lock as breeding and respawning.
+ state.isBreeding = true
+ local model = state.modelsById[id]
+ state.creaturesById[id] = nil
+ state.modelsById[id] = nil
+ state.occupiedSlots[slot] = nil
+ table.remove(state.creatureOrder, orderIndex)
+ state.inventoryVersion += 1
+ state.isBreeding = false
+ if model then
+  local ok, err = pcall(Assembler.Destroy, model)
+  if not ok then warn("Could not destroy discarded creature model: " .. tostring(err)) end
+ end
+ return response(true, "SUCCESS", "Creature discarded")
+end
 local function getState(player: Player): CreatureStateResult
  local state = states[player]
  local ready = state ~= nil and state.active and state.isReady and player.Parent == Players
@@ -257,9 +300,10 @@ function manager.Start()
  if started then return end
  local remotes = folder(ReplicatedStorage, "Remotes")
  local breeding = remote(remotes, "BreedCreature"); local collection = remote(remotes, "GetCreatureState")
+ local discarding = remote(remotes, "DiscardCreature")
  started = true; generation += 1; local currentGeneration = generation
- breedRemote = breeding; stateRemote = collection
- breeding.OnServerInvoke = breed; collection.OnServerInvoke = getState
+ breedRemote = breeding; stateRemote = collection; discardRemote = discarding
+ breeding.OnServerInvoke = breed; collection.OnServerInvoke = getState; discarding.OnServerInvoke = discard
  table.insert(connections, Players.PlayerAdded:Connect(function(player) initialize(player, currentGeneration) end))
  table.insert(connections, Players.PlayerRemoving:Connect(function(player) local state = states[player]; if state then cleanup(player, state) end end))
  for _, player in Players:GetPlayers() do task.spawn(initialize, player, currentGeneration) end
@@ -271,6 +315,7 @@ function manager.Stop()
  table.clear(connections)
  if breedRemote then breedRemote.OnServerInvoke = nil; breedRemote = nil end
  if stateRemote then stateRemote.OnServerInvoke = nil; stateRemote = nil end
+ if discardRemote then discardRemote.OnServerInvoke = nil; discardRemote = nil end
  for player, state in states do cleanup(player, state) end
 end
 return manager
