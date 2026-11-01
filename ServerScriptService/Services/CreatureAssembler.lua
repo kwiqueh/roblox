@@ -34,7 +34,7 @@ end
 local function template(slot: string, id: string): (Model?, string?)
  local entry = Catalog.Parts[id]
  if type(entry) ~= "table" then return nil, "INVALID_GENE" end
- if entry.Slot ~= slot then return nil, "INVALID_SLOT" end
+ if entry.slot ~= slot then return nil, "INVALID_SLOT" end
  local assets = ServerStorage:FindFirstChild("PartAssets")
  local folder = if assets then assets:FindFirstChild(slot) else nil
  if not folder or not folder:IsA("Folder") then return nil, "ASSET_FOLDER_MISSING" end

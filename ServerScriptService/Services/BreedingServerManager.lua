@@ -43,7 +43,7 @@ local function validGenes(genes: GeneData): boolean
   local id = (genes :: {[string]: string})[slot]
   if type(id) ~= "string" or #id == 0 or #id > 128 then return false end
   local entry = Catalog.Parts[id]
-  if type(entry) ~= "table" or entry.Slot ~= slot then return false end
+  if type(entry) ~= "table" or entry.slot ~= slot then return false end
  end
  return true
 end
