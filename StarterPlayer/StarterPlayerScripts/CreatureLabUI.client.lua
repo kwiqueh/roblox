@@ -52,7 +52,7 @@ local function corner(parent: Instance, radius: number)
  local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, radius); c.Parent = parent
 end
 local function stroke(parent: Instance, color: Color3): UIStroke
- local s = Instance.new("UIStroke"); s.Color = color; s.Thickness = 1.5; s.Parent = parent; return s
+ local s = Instance.new("UIStroke"); s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; s.Color = color; s.Thickness = 1.5; s.Parent = parent; return s
 end
 local function label(parent: Instance, text: string, size: number, color: Color3): TextLabel
  local l = Instance.new("TextLabel"); l.BackgroundTransparency = 1; l.Text = text; l.TextColor3 = color
@@ -92,31 +92,57 @@ local function findCreature(id: string?): Creature?
  return nil
 end
 
-local top = Instance.new("Frame"); top.Size = UDim2.new(1, -24, 0, 56); top.Position = UDim2.fromOffset(12, 8); top.BackgroundColor3 = COLOR.background; top.Parent = gui; corner(top, 12)
+local top = Instance.new("Frame"); top.AnchorPoint = Vector2.new(0.5, 1); top.BackgroundColor3 = COLOR.background; top.Parent = gui; corner(top, 12)
 local title = label(top, "MUTATION LAB", 19, COLOR.cyan); title.Font = Enum.Font.GothamBold; title.TextXAlignment = Enum.TextXAlignment.Left; title.Position = UDim2.fromOffset(14, 0); title.Size = UDim2.new(0.5, -10, 1, 0)
 local status = label(top, "LAB LOADING", 14, COLOR.muted); status.TextXAlignment = Enum.TextXAlignment.Right; status.Position = UDim2.new(0.5, 0, 0, 0); status.Size = UDim2.new(0.5, -14, 1, 0)
-local controls = Instance.new("Frame"); controls.BackgroundTransparency = 1; controls.Size = UDim2.new(1, -24, 0, 52); controls.Position = UDim2.new(0, 12, 1, -64); controls.Parent = gui
+local controls = Instance.new("Frame"); controls.AnchorPoint = Vector2.new(0.5, 1); controls.BackgroundTransparency = 1; controls.Parent = gui
 local controlsLayout = Instance.new("UIListLayout"); controlsLayout.FillDirection = Enum.FillDirection.Horizontal; controlsLayout.Padding = UDim.new(0, 8); controlsLayout.Parent = controls
 local breedButton = button(controls, "BREED", COLOR.cyan); breedButton.TextColor3 = COLOR.background
 local collectionButton = button(controls, "COLLECTION", COLOR.panel)
 local discardButton = button(controls, "DISCARD", COLOR.panel)
 for _, b in {breedButton, collectionButton, discardButton} do b.Size = UDim2.new(1/3, -6, 1, 0); b.TextScaled = true; local limit = Instance.new("UITextSizeConstraint"); limit.MaxTextSize = 17; limit.MinTextSize = 10; limit.Parent = b end
-local hint = button(gui, TEXT.hint .. "  ×", COLOR.panel); hint.Size = UDim2.new(1, -32, 0, 48); hint.Position = UDim2.new(0, 16, 0, 70); hint.TextSize = 14
+local hint = button(gui, TEXT.hint .. "  ×", COLOR.panel); hint.AnchorPoint = Vector2.new(0.5, 1); hint.TextSize = 14; hint.TextWrapped = true
 hint.Activated:Connect(function() hint.Visible = false end)
-local toast = label(gui, "", 15, COLOR.text); toast.Size = UDim2.new(1, -40, 0, 42); toast.Position = UDim2.new(0, 20, 1, -115); toast.BackgroundColor3 = COLOR.panel; toast.BackgroundTransparency = 0.05; toast.Visible = false; corner(toast, 10)
+local toast = label(gui, "", 15, COLOR.text); toast.AnchorPoint = Vector2.new(0.5, 1); toast.BackgroundColor3 = COLOR.panel; toast.BackgroundTransparency = 0.05; toast.Visible = false; corner(toast, 10)
 local toastVersion = 0
 local function notify(message: string)
  toastVersion += 1; local version = toastVersion; toast.Text = message; toast.Visible = true
  task.delay(4, function() if toastVersion == version then toast.Visible = false end end)
 end
 local overlay = Instance.new("Frame"); overlay.Size = UDim2.fromScale(1, 1); overlay.BackgroundColor3 = Color3.new(0, 0, 0); overlay.BackgroundTransparency = 0.35; overlay.Visible = false; overlay.Parent = gui
-local panel = Instance.new("Frame"); panel.AnchorPoint = Vector2.new(0.5, 0.5); panel.Position = UDim2.fromScale(0.5, 0.5); panel.Size = UDim2.new(0.94, 0, 0.88, 0); panel.BackgroundColor3 = COLOR.background; panel.Parent = overlay; corner(panel, 16); stroke(panel, COLOR.card)
-local sizeLimit = Instance.new("UISizeConstraint"); sizeLimit.MaxSize = Vector2.new(780, 650); sizeLimit.Parent = panel
+local panel = Instance.new("Frame"); panel.AnchorPoint = Vector2.new(0.5, 0); panel.BackgroundColor3 = COLOR.background; panel.Parent = overlay; corner(panel, 16); stroke(panel, COLOR.card)
+-- Reserve the upper left for chat and the top right for the player list.
+-- All measurements use the inset-aware viewport and are recomputed on rotation.
+local function layoutViewport()
+ local size = overlay.AbsoluteSize
+ if size.X <= 0 or size.Y <= 0 then return end
+ local width, height = size.X, size.Y
+ local bottom = if width < 900 then 72 else 16
+ local hudWidth = math.min(600, width - 24)
+ controls.Size = UDim2.fromOffset(hudWidth, 52)
+ controls.Position = UDim2.new(0.5, 0, 1, -bottom)
+ top.Size = UDim2.fromOffset(hudWidth, 46)
+ top.Position = UDim2.new(0.5, 0, 1, -(bottom + 60))
+ hint.Size = UDim2.fromOffset(hudWidth, 44)
+ hint.Position = UDim2.new(0.5, 0, 1, -(bottom + 114))
+ toast.Size = UDim2.fromOffset(hudWidth, 42)
+ toast.Position = UDim2.new(0.5, 0, 1, -(bottom + 114))
+ local reservedLeft = if width >= 900 then math.min(420, width * 0.34) else 12
+ local reservedTop = if width >= 900 then math.clamp(height * 0.26, 140, 240) else math.clamp(height * 0.34, 100, 285)
+ local panelWidth = math.max(100, math.min(780, width - reservedLeft - 12))
+ local panelHeight = math.max(100, math.min(650, height - reservedTop - 12))
+ panel.Size = UDim2.fromOffset(panelWidth, panelHeight)
+ panel.Position = UDim2.fromOffset(reservedLeft + (width - reservedLeft - 12) / 2, reservedTop)
+end
+overlay:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutViewport)
+layoutViewport()
 local heading = label(panel, "", 20, COLOR.text); heading.Font = Enum.Font.GothamBold; heading.TextXAlignment = Enum.TextXAlignment.Left; heading.Position = UDim2.fromOffset(18, 4); heading.Size = UDim2.new(1, -76, 0, 48)
 local close = button(panel, "×", COLOR.card); close.Size = UDim2.fromOffset(42, 40); close.Position = UDim2.new(1, -50, 0, 8); close.TextSize = 24
 local content = Instance.new("ScrollingFrame"); content.Position = UDim2.fromOffset(12, 54); content.Size = UDim2.new(1, -24, 1, -66); content.BackgroundTransparency = 1; content.BorderSizePixel = 0; content.ScrollBarThickness = 5; content.AutomaticCanvasSize = Enum.AutomaticSize.Y; content.CanvasSize = UDim2.new(); content.Parent = panel
 local list = Instance.new("UIListLayout"); list.Padding = UDim.new(0, 10); list.SortOrder = Enum.SortOrder.LayoutOrder; list.Parent = content
+local gridResizeConnection: RBXScriptConnection? = nil
 local function clearContent()
+ if gridResizeConnection then gridResizeConnection:Disconnect(); gridResizeConnection = nil end
  for _, item in content:GetChildren() do if item ~= list then item:Destroy() end end
  content.CanvasPosition = Vector2.zero
 end
@@ -210,23 +236,55 @@ local function doDiscard()
  busy = false; render()
 end
 local function drawCards(selectable: boolean)
- local grid = Instance.new("Frame"); grid.BackgroundTransparency = 1; grid.Size = UDim2.new(1, -8, 0, 390); grid.Parent = content
- local layout = Instance.new("UIGridLayout"); layout.CellPadding = UDim2.fromOffset(8, 8); layout.CellSize = UDim2.new(0.5, -4, 0, 120); layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.Parent = grid
+ local grid = Instance.new("Frame"); grid.BackgroundTransparency = 1; grid.Size = UDim2.new(1, -8, 0, 1); grid.Parent = content
+ local layout = Instance.new("UIGridLayout"); layout.CellPadding = UDim2.fromOffset(8, 8); layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.Parent = grid
+ local cardHeight = 174
  local function resize()
-  local columns = if grid.AbsoluteSize.X >= 560 then 3 else 2
-  layout.CellSize = UDim2.new(1 / columns, -6, 0, 120)
-  grid.Size = UDim2.new(1, -8, 0, math.ceil(6 / columns) * 128)
+  local available = grid.AbsoluteSize.X
+  if available <= 0 then return end
+  -- Keep at least 200 pixels per card; use the scroll container for extra rows.
+  local columns = if available >= 616 then 3 elseif available >= 408 then 2 else 1
+  layout.CellSize = UDim2.new(1 / columns, -8 * (columns - 1) / columns, 0, cardHeight)
+  local height = math.ceil(6 / columns) * cardHeight + (math.ceil(6 / columns) - 1) * 8
+  local newSize = UDim2.new(1, -8, 0, height)
+  if grid.Size ~= newSize then grid.Size = newSize end
  end
- grid:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize); resize()
+ gridResizeConnection = grid:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize)
+ resize()
  local current = snapshot
  for slot = 1, 6 do
   local id = if current then current.occupiedSlots[tostring(slot)] else nil
   local creature = findCreature(id)
-  local card = button(grid, if creature then "SLOT " .. slot .. "\n" .. describe(creature) else "SLOT " .. slot .. "\nEMPTY SLOT", COLOR.card)
-  card.LayoutOrder = slot; card.TextSize = 12; card.TextWrapped = true
+  local card = button(grid, "", COLOR.card)
+  card.LayoutOrder = slot
   local border = stroke(card, if creature then rarityColor(rarity(creature)) else COLOR.card)
   if creature and (creature.id == parentA or creature.id == parentB or creature.id == chosen) then border.Color = COLOR.cyan; border.Thickness = 3 end
   card.Active = selectable and creature ~= nil and not busy
+  card.AutoButtonColor = card.Active
+  local padding = Instance.new("UIPadding")
+  padding.PaddingLeft = UDim.new(0, 12); padding.PaddingRight = UDim.new(0, 12)
+  padding.PaddingTop = UDim.new(0, 10); padding.PaddingBottom = UDim.new(0, 10); padding.Parent = card
+  local lines = Instance.new("UIListLayout"); lines.Padding = UDim.new(0, 4); lines.SortOrder = Enum.SortOrder.LayoutOrder; lines.Parent = card
+  local function line(text: string, order: number, height: number, textColor: Color3): TextLabel
+   local l = label(card, text, 14, textColor)
+   l.LayoutOrder = order; l.Size = UDim2.new(1, 0, 0, height)
+   l.TextXAlignment = Enum.TextXAlignment.Left; l.TextYAlignment = Enum.TextYAlignment.Center
+   return l
+  end
+  local header = line(if creature then "SLOT " .. slot .. "   •   #" .. string.upper(string.sub(creature.id, 1, 4)) else "SLOT " .. slot, 1, 22, COLOR.text)
+  header.Font = Enum.Font.GothamBold
+  if creature then
+   line("HEAD: " .. creature.genes.Head, 2, 24, COLOR.muted)
+   line("BODY: " .. creature.genes.Body, 3, 24, COLOR.muted)
+   line("LIMBS: " .. creature.genes.Limbs, 4, 24, COLOR.muted)
+   local tier = rarity(creature)
+   local badge = line(string.upper(tier), 5, 24, rarityColor(tier))
+   badge.Font = Enum.Font.GothamBold; badge.TextXAlignment = Enum.TextXAlignment.Center
+   badge.Size = UDim2.new(1, 0, 0, 24); badge.BackgroundTransparency = 0; badge.BackgroundColor3 = COLOR.panel; corner(badge, 6)
+  else
+   local empty = line("EMPTY SLOT", 2, 48, COLOR.muted)
+   empty.TextXAlignment = Enum.TextXAlignment.Center
+  end
   if creature and selectable then
    card.Activated:Connect(function()
     if busy then return end
@@ -239,6 +297,7 @@ local function drawCards(selectable: boolean)
   end
  end
 end
+
 render = function()
  clearContent()
  if mode == "breed" then
