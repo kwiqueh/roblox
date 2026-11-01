@@ -55,6 +55,27 @@ local function template(slot: string, id: string): (Model?, string?)
  return value, nil
 end
 
+local function addIdentification(root: BasePart, creature: Creature)
+ local order = {Common = 1, Rare = 2, Insane = 3, Glitched = 4}
+ local names = {"Common", "Rare", "Insane", "Glitched"}
+ local colors = {Color3.fromRGB(195,205,214), Color3.fromRGB(75,180,255), Color3.fromRGB(209,105,255), Color3.fromRGB(255,91,151)}
+ local highest = 1
+ for _, id in {creature.genes.Head, creature.genes.Body, creature.genes.Limbs} do
+  local entry = Catalog.Parts[id]
+  if entry and order[entry.tier] then highest = math.max(highest, order[entry.tier]) end
+ end
+ local billboard = Instance.new("BillboardGui")
+ billboard.Name = "CreatureIdentification"; billboard.Adornee = root
+ billboard.Size = UDim2.fromOffset(130, 38); billboard.StudsOffsetWorldSpace = Vector3.new(0, 3.45, 0)
+ billboard.MaxDistance = 45; billboard.AlwaysOnTop = false
+ local text = Instance.new("TextLabel")
+ text.BackgroundTransparency = 1; text.Size = UDim2.fromScale(1, 1)
+ text.Font = Enum.Font.GothamBold; text.TextSize = 13; text.TextColor3 = colors[highest]
+ text.TextStrokeTransparency = .25; text.TextWrapped = true
+ text.Text = "MUTANT #" .. string.upper(string.sub(creature.id, 1, 4)) .. "\n" .. string.upper(names[highest])
+ text.Parent = billboard; billboard.Parent = root
+end
+
 function Assembler.Assemble(creature: Creature, spawnCFrame: CFrame): (Model?, string?)
  if type(creature) ~= "table" or type(creature.id) ~= "string" or creature.id == "" or type(creature.genes) ~= "table" or typeof(spawnCFrame) ~= "CFrame" then return nil, "INVALID_CREATURE" end
  local genes = creature.genes
@@ -99,6 +120,7 @@ function Assembler.Assemble(creature: Creature, spawnCFrame: CFrame): (Model?, s
   composite:SetAttribute("HeadId", genes.Head)
   composite:SetAttribute("BodyId", genes.Body)
   composite:SetAttribute("LimbsId", genes.Limbs)
+  addIdentification(root, creature)
  end)
  if not ok then
   composite:Destroy()

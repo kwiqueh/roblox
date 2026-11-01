@@ -32,7 +32,7 @@ local COLOR = {
 }
 local TEXT = {
  hint = "Select two creatures to create your first mutant.",
- rules = "Each gene: 45% parent A  •  45% parent B  •  10% mutation roll",
+ rules = "Each gene: 45% parent A  |  45% parent B  |  10% mutation roll",
  capacity = "Laboratory full. Discard a creature to make room.",
  minimum = "Keep at least two creatures so you can keep breeding.",
 }
@@ -101,7 +101,7 @@ local breedButton = button(controls, "BREED", COLOR.cyan); breedButton.TextColor
 local collectionButton = button(controls, "COLLECTION", COLOR.panel)
 local discardButton = button(controls, "DISCARD", COLOR.panel)
 for _, b in {breedButton, collectionButton, discardButton} do b.Size = UDim2.new(1/3, -6, 1, 0); b.TextScaled = true; local limit = Instance.new("UITextSizeConstraint"); limit.MaxTextSize = 17; limit.MinTextSize = 10; limit.Parent = b end
-local hint = button(gui, TEXT.hint .. "  ×", COLOR.panel); hint.AnchorPoint = Vector2.new(0.5, 1); hint.TextSize = 14; hint.TextWrapped = true
+local hint = button(gui, TEXT.hint .. "  X", COLOR.panel); hint.AnchorPoint = Vector2.new(0.5, 1); hint.TextSize = 14; hint.TextWrapped = true
 hint.Activated:Connect(function() hint.Visible = false end)
 local toast = label(gui, "", 15, COLOR.text); toast.AnchorPoint = Vector2.new(0.5, 1); toast.BackgroundColor3 = COLOR.panel; toast.BackgroundTransparency = 0.05; toast.Visible = false; corner(toast, 10)
 local toastVersion = 0
@@ -137,20 +137,28 @@ end
 overlay:GetPropertyChangedSignal("AbsoluteSize"):Connect(layoutViewport)
 layoutViewport()
 local heading = label(panel, "", 20, COLOR.text); heading.Font = Enum.Font.GothamBold; heading.TextXAlignment = Enum.TextXAlignment.Left; heading.Position = UDim2.fromOffset(18, 4); heading.Size = UDim2.new(1, -76, 0, 48)
-local close = button(panel, "×", COLOR.card); close.Size = UDim2.fromOffset(42, 40); close.Position = UDim2.new(1, -50, 0, 8); close.TextSize = 24
+local close = button(panel, "X", COLOR.card); close.Size = UDim2.fromOffset(42, 40); close.Position = UDim2.new(1, -50, 0, 8); close.TextSize = 24
 local content = Instance.new("ScrollingFrame"); content.Position = UDim2.fromOffset(12, 54); content.Size = UDim2.new(1, -24, 1, -66); content.BackgroundTransparency = 1; content.BorderSizePixel = 0; content.ScrollBarThickness = 5; content.AutomaticCanvasSize = Enum.AutomaticSize.Y; content.CanvasSize = UDim2.new(); content.Parent = panel
 local list = Instance.new("UIListLayout"); list.Padding = UDim.new(0, 10); list.SortOrder = Enum.SortOrder.LayoutOrder; list.Parent = content
+local contentPadding = Instance.new("UIPadding")
+contentPadding.PaddingTop = UDim.new(0, 8); contentPadding.PaddingBottom = UDim.new(0, 8)
+contentPadding.PaddingLeft = UDim.new(0, 4); contentPadding.PaddingRight = UDim.new(0, 4)
+contentPadding.Parent = content
+local contentOrder = 0
+local function nextOrder(): number
+ contentOrder += 1; return contentOrder
+end
 local gridResizeConnection: RBXScriptConnection? = nil
 local function clearContent()
  if gridResizeConnection then gridResizeConnection:Disconnect(); gridResizeConnection = nil end
- for _, item in content:GetChildren() do if item ~= list then item:Destroy() end end
- content.CanvasPosition = Vector2.zero
+ for _, item in content:GetChildren() do if item ~= list and item ~= contentPadding then item:Destroy() end end
+ contentOrder = 0; content.CanvasPosition = Vector2.zero
 end
 local function rowLabel(text: string, height: number, color: Color3?): TextLabel
- local l = label(content, text, 14, color or COLOR.muted); l.Size = UDim2.new(1, -8, 0, height); return l
+ local l = label(content, text, 14, color or COLOR.muted); l.LayoutOrder = nextOrder(); l.Size = UDim2.new(1, -8, 0, height); return l
 end
 local function wideButton(text: string, height: number): TextButton
- local b = button(content, text, COLOR.card); b.Size = UDim2.new(1, -8, 0, height); return b
+ local b = button(content, text, COLOR.card); b.LayoutOrder = nextOrder(); b.Size = UDim2.new(1, -8, 0, height); return b
 end
 local function stateMessage(code: string, fallback: string): string
  local messages: {[string]: string} = {NOT_READY = "Lab is loading. Try again shortly.", INVALID_REQUEST = "Invalid request. Please try again.", INVALID_PARENT = "Choose two different creatures.", PARENT_NOT_FOUND = "Creature is no longer in your collection.", STALE_STATE = "Collection changed; refreshing.", CAPACITY_FULL = TEXT.capacity, BUSY = "Another action is in progress.", COOLDOWN = "Please wait a moment before breeding again.", ASSET_MISSING = "Could not create this creature. Please try again.", ASSEMBLY_FAILED = "Could not create this creature. Please try again.", MINIMUM_CREATURES = TEXT.minimum, INTERNAL_ERROR = "Something went wrong. Please try again."}
@@ -163,7 +171,7 @@ local function applySnapshot(nextState: Snapshot)
  if not findCreature(parentA) then parentA = nil end
  if not findCreature(parentB) then parentB = nil end
  if not findCreature(chosen) then chosen = nil end
- status.Text = tostring(#nextState.creatures) .. " / " .. tostring(nextState.maxSlots) .. "   •   LAB ONLINE"
+ status.Text = tostring(#nextState.creatures) .. " / " .. tostring(nextState.maxSlots) .. "   |   LAB ONLINE"
 end
 -- All invocations share one guard, so refreshes cannot overtake mutations.
 local function refresh(): boolean
@@ -186,26 +194,41 @@ end
 local function runReveal(creature: Creature)
  revealToken += 1; local token = revealToken; mode = "reveal"; overlay.Visible = true; clearContent(); heading.Text = "MUTATION CHAMBER"
  local tier = rarity(creature); local color = rarityColor(tier)
- rowLabel("INCUBATING  •  GENETIC SEQUENCE STABLE", 40, color)
- local chamber = label(content, "◉", 80, color); chamber.Size = UDim2.new(1, -8, 0, 150)
- local scale = Instance.new("UIScale"); scale.Parent = chamber
- TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 5, true), {Scale = 1.2}):Play()
+ rowLabel("GENETIC SEQUENCE INITIALIZING", 40, COLOR.muted)
+ -- The incubation chamber and egg are native UI shapes, not font glyphs.
+ local chamber = Instance.new("Frame"); chamber.Name = "IncubationChamber"
+ chamber.BackgroundColor3 = COLOR.panel; chamber.Size = UDim2.new(1, -8, 0, 160)
+ chamber.LayoutOrder = nextOrder(); chamber.Parent = content; corner(chamber, 24); stroke(chamber, color)
+ local glow = Instance.new("Frame"); glow.Name = "EnergyGlow"; glow.AnchorPoint = Vector2.new(.5, .5)
+ glow.Position = UDim2.fromScale(.5, .5); glow.Size = UDim2.fromOffset(108, 130)
+ glow.BackgroundColor3 = color; glow.BackgroundTransparency = .78; glow.Parent = chamber; corner(glow, 48)
+ local egg = Instance.new("Frame"); egg.Name = "Egg"; egg.AnchorPoint = Vector2.new(.5, .5)
+ egg.Position = UDim2.fromScale(.5, .5); egg.Size = UDim2.fromOffset(70, 100)
+ egg.BackgroundColor3 = Color3.fromRGB(224, 242, 245); egg.Parent = chamber; corner(egg, 45); stroke(egg, color)
+ local eggScale = Instance.new("UIScale"); eggScale.Parent = egg
+ TweenService:Create(eggScale, TweenInfo.new(.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 3, true), {Scale = 1.1}):Play()
  local skip = wideButton("SKIP", 48)
  local function finish()
   if revealToken ~= token or mode ~= "reveal" then return end
-  revealToken += 1; clearContent(); heading.Text = "NEW MUTANT DISCOVERED!"
+  revealToken += 1; clearContent(); heading.Text = "NEW CREATURE"
   for _, item in {{"HEAD", creature.genes.Head}, {"BODY", creature.genes.Body}, {"LIMBS", creature.genes.Limbs}} do
    local definition = Catalog.Parts[item[2]]
    local geneTier = if definition then definition.tier else "Common"
-   local result = rowLabel(item[1] .. ": " .. item[2] .. "  •  " .. string.upper(geneTier) .. (if geneTier == tier then "  ★" else ""), 42, rarityColor(geneTier))
-   result.TextSize = 16; result.Font = Enum.Font.GothamBold
-   if geneTier == "Glitched" then TweenService:Create(result, TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 3, true), {TextColor3 = COLOR.Insane}):Play() end
+   local emphasis = geneTier == tier and tier ~= "Common"
+   local result = rowLabel(item[1] .. ": " .. item[2] .. "  |  " .. string.upper(geneTier) .. (if emphasis then "  -  HIGHEST" else ""), 42, rarityColor(geneTier))
+   result.TextSize = 16; result.Font = if emphasis then Enum.Font.GothamBold else Enum.Font.GothamMedium
+   if geneTier == "Glitched" then TweenService:Create(result, TweenInfo.new(.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 2, true), {TextColor3 = COLOR.Insane}):Play() end
   end
-  rowLabel(if tier == "Glitched" then "GLITCHED  •  RARE GENETIC SIGNATURE" else "HIGHEST RARITY: " .. string.upper(tier), 45, color)
+  rowLabel(if tier == "Glitched" then "GLITCHED | RARE GENETIC SIGNATURE" else "HIGHEST RARITY: " .. string.upper(tier), 45, color)
   local done = wideButton("CONTINUE", 52); setEnabled(done, true); done.Activated:Connect(function() mode = "collection"; render() end)
  end
  skip.Activated:Connect(finish)
- task.delay(1.1, function() if revealToken == token and mode == "reveal" then chamber.Text = "✧  ◉  ✧"; heading.Text = "GENETIC ENERGY RISING" end end)
+ task.delay(1, function()
+  if revealToken ~= token or mode ~= "reveal" then return end
+  heading.Text = "GENETIC ENERGY RISING"
+  TweenService:Create(egg, TweenInfo.new(.12, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 6, true), {Rotation = 8, BackgroundColor3 = color}):Play()
+  TweenService:Create(glow, TweenInfo.new(.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = .42}):Play()
+ end)
  task.delay(2.4, finish)
 end
 local function doBreed()
@@ -236,7 +259,7 @@ local function doDiscard()
  busy = false; render()
 end
 local function drawCards(selectable: boolean)
- local grid = Instance.new("Frame"); grid.BackgroundTransparency = 1; grid.Size = UDim2.new(1, -8, 0, 1); grid.Parent = content
+ local grid = Instance.new("Frame"); grid.BackgroundTransparency = 1; grid.LayoutOrder = nextOrder(); grid.Size = UDim2.new(1, -8, 0, 1); grid.Parent = content
  local layout = Instance.new("UIGridLayout"); layout.CellPadding = UDim2.fromOffset(8, 8); layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.Parent = grid
  local cardHeight = 174
  local function resize()
@@ -271,7 +294,7 @@ local function drawCards(selectable: boolean)
    l.TextXAlignment = Enum.TextXAlignment.Left; l.TextYAlignment = Enum.TextYAlignment.Center
    return l
   end
-  local header = line(if creature then "SLOT " .. slot .. "   •   #" .. string.upper(string.sub(creature.id, 1, 4)) else "SLOT " .. slot, 1, 22, COLOR.text)
+  local header = line(if creature then "SLOT " .. slot .. "   |   #" .. string.upper(string.sub(creature.id, 1, 4)) else "SLOT " .. slot, 1, 22, COLOR.text)
   header.Font = Enum.Font.GothamBold
   if creature then
    line("HEAD: " .. creature.genes.Head, 2, 24, COLOR.muted)
