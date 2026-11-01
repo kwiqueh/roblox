@@ -86,8 +86,9 @@ local function describe(c: Creature): string
  return "MUTANT #" .. string.upper(string.sub(c.id, 1, 4)) .. "\nHEAD: " .. c.genes.Head .. "\nBODY: " .. c.genes.Body .. "\nLIMBS: " .. c.genes.Limbs .. "\n" .. string.upper(rarity(c))
 end
 local function findCreature(id: string?): Creature?
- if not id or not snapshot then return nil end
- for _, c in snapshot.creatures do if c.id == id then return c end end
+ local current = snapshot
+ if not id or not current then return nil end
+ for _, c in current.creatures do if c.id == id then return c end end
  return nil
 end
 
@@ -182,9 +183,9 @@ local function runReveal(creature: Creature)
  task.delay(2.4, finish)
 end
 local function doBreed()
- if busy or not snapshot or not parentA or not parentB or parentA == parentB or #snapshot.creatures >= snapshot.maxSlots then return end
- busy = true; render()
  local current = snapshot; local a, b = parentA, parentB
+ if busy or not current or not a or not b or a == b or #current.creatures >= current.maxSlots then return end
+ busy = true; render()
  local ok, response = pcall(function() return breedRemote:InvokeServer({parentAId = a, parentBId = b, expectedInventoryVersion = current.inventoryVersion}) end)
  local result: Operation? = if ok and type(response) == "table" then response else nil
  if result and result.success and result.creature then
@@ -196,9 +197,9 @@ local function doBreed()
  busy = false; notify(if result then stateMessage(result.code, result.message) else "Cannot reach the lab. Please retry."); render()
 end
 local function doDiscard()
- if busy or not snapshot or not chosen then return end
- busy = true; render()
  local current = snapshot; local id = chosen
+ if busy or not current or not id then return end
+ busy = true; render()
  local ok, response = pcall(function() return discardRemote:InvokeServer({creatureId = id, expectedInventoryVersion = current.inventoryVersion}) end)
  local result: Operation? = if ok and type(response) == "table" then response else nil
  if result and result.success then
@@ -217,8 +218,9 @@ local function drawCards(selectable: boolean)
   grid.Size = UDim2.new(1, -8, 0, math.ceil(6 / columns) * 128)
  end
  grid:GetPropertyChangedSignal("AbsoluteSize"):Connect(resize); resize()
+ local current = snapshot
  for slot = 1, 6 do
-  local id = if snapshot then snapshot.occupiedSlots[tostring(slot)] else nil
+  local id = if current then current.occupiedSlots[tostring(slot)] else nil
   local creature = findCreature(id)
   local card = button(grid, if creature then "SLOT " .. slot .. "\n" .. describe(creature) else "SLOT " .. slot .. "\nEMPTY SLOT", COLOR.card)
   card.LayoutOrder = slot; card.TextSize = 12; card.TextWrapped = true
