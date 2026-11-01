@@ -1,12 +1,12 @@
 -- Mutation Lab V0.2 installer. Paste into the Command Bar in EDIT mode, not Play.
--- Downloads ONLY source files from this project's public GitHub branch.
+-- Downloads ONLY source files from this project's public GitHub commit.
 -- Make a backup before running in an existing place: it overwrites matching script names.
 local RunService = game:GetService("RunService")
 assert(RunService:IsStudio() and not RunService:IsRunning(),
     "Open a Baseplate in Roblox Studio and STOP Play before installing")
 
 local HttpService = game:GetService("HttpService")
-local base = "https://raw.githubusercontent.com/kwiqueh/roblox/feature/mutation-lab-v0.2/"
+local base = "https://raw.githubusercontent.com/kwiqueh/roblox/73729d1375b0bcf5b3cf64254c3e3605e37b8705/"
 local files = {
     {"ReplicatedStorage/Shared/PartCatalog.lua", "ReplicatedStorage", {"Shared"}, "PartCatalog", "ModuleScript"},
     {"ServerScriptService/Services/BreedingService.lua", "ServerScriptService", {"Services"}, "BreedingService", "ModuleScript"},
