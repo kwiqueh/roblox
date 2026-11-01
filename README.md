@@ -5,7 +5,7 @@ A session-only Roblox creature collection MVP. Players start with two creatures,
 ## Update an existing Studio place
 
 1. Open `MutationLab.rbxl` in Roblox Studio and stop any active Play session. Save a backup with **File > Save As**.
-2. Open [InstallMVP.commandbar.lua](https://github.com/kwiqueh/roblox/blob/feature/mutation-lab-v0.2/examples/InstallMVP.commandbar.lua) on GitHub and copy its entire text (use the Raw button to see plain text).
+2. Open [InstallMVP.commandbar.lua](https://github.com/kwiqueh/roblox/blob/fix/mutation-lab-ui-readability/examples/InstallMVP.commandbar.lua) on GitHub and copy its entire text (use the Raw button to see plain text).
 3. In Studio, open **View > Command Bar**, paste the full script there and press Enter. Allow the network request if prompted. Check **View > Output** for `MUTATION LAB V0.2 INSTALLED` or an error. The installer must fetch source from GitHub; make the repository publicly readable or otherwise make those raw URLs accessible to Studio.
 4. Save the place. Press **Play**. You should see `2 / 6`; open **BREED**, select parents A and B, then **BREED NOW**. There is no automatic breeding on join. **COLLECTION** displays the current inventory; **DISCARD** offers confirmation and keeps at least two creatures.
 
@@ -20,6 +20,6 @@ Studio runtime, mobile UI, strict Roblox type diagnostics and multiplayer tests 
 - Discard a creature, verify its model disappears and the vacant slot is reused; at two creatures discard must fail.
 - Retry after failed requests, close and reopen panels, and test stale versions and rapid clicks.
 - Run a two-player server and verify cross-player breed/discard attempts fail.
-- Test small mobile viewport sizes and touch input. Run the installer twice and confirm no duplicate scripts or altered models.
+- Test 1440×900, 1280×720, and mobile viewport sizes with chat expanded, the player list visible, and touch input. Verify card borders, text, scrolling, and panel headings. Run the installer twice and confirm no duplicate scripts or altered models.
 
 Catalog entries use lowercase `slot`, `tier`, and `weight`. Genetics and probabilities remain in `BreedingService` and `PartCatalog`.

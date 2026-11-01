@@ -6,7 +6,7 @@ assert(RunService:IsStudio() and not RunService:IsRunning(),
     "Open a Baseplate in Roblox Studio and STOP Play before installing")
 
 local HttpService = game:GetService("HttpService")
-local base = "https://raw.githubusercontent.com/kwiqueh/roblox/73729d1375b0bcf5b3cf64254c3e3605e37b8705/"
+local base = "https://raw.githubusercontent.com/kwiqueh/roblox/98f5179e0c2771ce5dbe7a10f7825d1f08c28036/"
 local files = {
     {"ReplicatedStorage/Shared/PartCatalog.lua", "ReplicatedStorage", {"Shared"}, "PartCatalog", "ModuleScript"},
     {"ServerScriptService/Services/BreedingService.lua", "ServerScriptService", {"Services"}, "BreedingService", "ModuleScript"},
